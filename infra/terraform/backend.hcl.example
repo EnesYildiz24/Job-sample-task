@@ -1,0 +1,6 @@
+# Example backend config for `terraform init -backend-config=backend.hcl`
+bucket         = "replace-with-state-bucket"
+key            = "prod/terraform.tfstate"
+region         = "eu-central-1"
+dynamodb_table = "replace-with-lock-table"
+encrypt        = true

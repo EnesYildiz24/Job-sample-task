@@ -1,0 +1,69 @@
+name: aws-image-publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag to publish (e.g. sha, release-2026-02-24)"
+        required: true
+        default: "latest"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_FRONTEND_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
+  ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }}
+  AWS_GITHUB_OIDC_ROLE_ARN: ${{ secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required settings
+        run: |
+          test -n "$AWS_GITHUB_OIDC_ROLE_ARN" || { echo "::error::Missing secret AWS_GITHUB_OIDC_ROLE_ARN"; exit 1; }
+          test -n "$AWS_REGION" || { echo "::error::Missing variable AWS_REGION"; exit 1; }
+          test -n "$ECR_FRONTEND_REPOSITORY" || { echo "::error::Missing variable ECR_FRONTEND_REPOSITORY"; exit 1; }
+          test -n "$ECR_BACKEND_REPOSITORY" || { echo "::error::Missing variable ECR_BACKEND_REPOSITORY"; exit 1; }
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            -t "$REGISTRY/$ECR_BACKEND_REPOSITORY:$TAG" \
+            packages/backend
+
+      - name: Build and push frontend image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            -t "$REGISTRY/$ECR_FRONTEND_REPOSITORY:$TAG" \
+            packages/frontend

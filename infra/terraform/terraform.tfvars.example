@@ -1,0 +1,21 @@
+# Required/typical overrides
+project_name  = "vgl"
+environment   = "prod"
+aws_region    = "eu-central-1"
+
+# The image tags that ECS should run
+frontend_image_tag = "latest"
+backend_image_tag  = "latest"
+
+# Capacity tuning
+frontend_desired_count = 2
+backend_desired_count  = 2
+
+frontend_min_capacity = 2
+frontend_max_capacity = 10
+backend_min_capacity  = 2
+backend_max_capacity  = 20
+
+# Database sizing (cost-aware defaults)
+db_instance_class = "db.t4g.micro"
+redis_node_type   = "cache.t4g.micro"

@@ -1,0 +1,52 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: vgl-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./packages/backend
+      dockerfile: Dockerfile
+    container_name: vgl-backend
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      DB_DRIVER: sqlite
+      DB_PATH: /app/data/dev.db
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      REDIS_CACHE_ENABLED: "1"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      REDIS_TIMEOUT: 0.05
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./packages/backend/data:/app/data
+
+  frontend:
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+    container_name: vgl-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NUXT_PUBLIC_API_ENVIRONMENT: dev
+      NUXT_PUBLIC_API_BASE_URL_DEV: http://backend:8080
+      NUXT_PUBLIC_API_BASE_URL_PROD: http://backend:8080
+    ports:
+      - "3000:3000"

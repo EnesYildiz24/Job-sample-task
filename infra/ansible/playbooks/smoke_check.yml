@@ -1,0 +1,32 @@
+---
+- name: Smoke test deployed endpoints
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    frontend_url: "http://localhost:3000"
+    backend_health_url: "http://localhost:8080/health"
+  tasks:
+    - name: Check frontend root
+      ansible.builtin.uri:
+        url: "{{ frontend_url }}"
+        method: GET
+        return_content: false
+        status_code: [200]
+      register: frontend_response
+
+    - name: Check backend health
+      ansible.builtin.uri:
+        url: "{{ backend_health_url }}"
+        method: GET
+        return_content: true
+        status_code: [200]
+      register: backend_response
+
+    - name: Assert backend health payload
+      ansible.builtin.assert:
+        that:
+          - "'status' in backend_response.json"
+          - "backend_response.json.status == 'ok'"
+        fail_msg: "Backend health check did not return status=ok"
+        success_msg: "Smoke checks passed"
