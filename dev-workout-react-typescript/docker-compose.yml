@@ -1,0 +1,14 @@
+services:
+  backend:
+    build:
+      context: ../dev-workout-backend-kotlin
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: .
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
